@@ -4,15 +4,8 @@ import Keyboard
 import Window
 
 {-
-  ToDo:
+  ToDo: 
     - upon restart, player who won point 'serves'
-    - ball.vy depends on either:
-      - paddle.vy
-        + { ball | vy <- ball.vy + 0.5 * paddle.vy }
-      - distance between ball.y and paddle.y
-        + if hits middle, vy unchanged
-        + if hits bottom, decreases vy
-        + if hits top, increases vy
 -}
 
 
