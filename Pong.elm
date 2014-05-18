@@ -3,6 +3,19 @@
 import Keyboard
 import Window
 
+{-
+  ToDo:
+    - upon restart, player who won point 'serves'
+    - ball.vy depends on either:
+      - paddle.vy
+        + { ball | vy <- ball.vy + 0.5 * paddle.vy }
+      - distance between ball.y and paddle.y
+        + if hits middle, vy unchanged
+        + if hits bottom, decreases vy
+        + if hits top, increases vy
+-}
+
+
 ------------
 -- INPUTS --
 ------------
@@ -71,7 +84,6 @@ makePlayer : Float -> Player
 makePlayer x = { paddle = {x=x, y=0, vx=0, vy=0}
                , score = 0 }
 
-
 -- How each game starts.
 newGame : Game
 newGame =
@@ -91,13 +103,21 @@ near : Float -> Float -> Float -> Bool
 near a thresh b =
     (abs (a - b)) <= thresh
 
+data Contact = LeftPaddle | RightPaddle | NoPaddle
+
 hit : Paddle -> Ball -> Bool
 hit paddle ball =
     (ball.x |> near paddle.x 8) && (ball.y |> near paddle.y 20)
 
--- new velocity
-stepV : Float -> Bool -> Bool -> Float
-stepV v hitMin hitMax =
+getHitPaddle : Ball -> Paddle -> Paddle -> Maybe Paddle
+getHitPaddle ball left right =
+    if | hit left ball -> Just left
+       | hit right ball -> Just right
+       | otherwise -> Nothing
+
+-- new velocity for Ball
+maybeBounce : Float -> Bool -> Bool -> Float
+maybeBounce v hitMin hitMax =
   if | hitMin    -> abs v       -- switch to positive
      | hitMax    -> 0 - abs v   -- switch to negative
      | otherwise -> v
@@ -106,64 +126,96 @@ offCourt : Ball -> Bool
 offCourt ball = not (ball.x |> near 0 halfWidth)
 
 placeInCenter : Ball -> Ball
-placeInCenter ball = { ball | x <- 0, y <- 0 }
+placeInCenter ball =
+    let vy = 100
+    in { ball | x <- 0
+              , y <- 0
+              , vx <- getVx ball.vx vy 400
+              , vy <- vy }
 
 stepObj : Time -> Movable -> Movable
 stepObj t obj =
     { obj | x <- obj.x + obj.vx * t
           , y <- obj.y + obj.vy * t }
 
+getVy : Float -> Maybe Paddle -> Float
+getVy vy hitPaddle =
+    let vyDelta = case hitPaddle of 
+                    Just p -> p.vy * 0.25
+                    Nothing -> 0
+    in
+      clamp -350 350 (vy + vyDelta)
+
+getVx : Float -> Float -> Float -> Float
+getVx vx vy total =
+    let magnitude = sqrt (total^2 - vy^2)
+    in if vx >=0 then magnitude else 0 - magnitude
+
+getVxVy : Float -> Float -> Maybe Paddle -> (Float,Float)
+getVxVy vx vy hitPaddle =
+    let vy' = getVy vy hitPaddle
+        vx' = getVx vx vy' 400
+        vx'' = case hitPaddle of
+                 Just p -> 0 - vx'   -- reverse!
+                 Nothing -> vx'
+    in (vx'', vy')
+
 stepBall : State -> Time -> Paddle -> Paddle -> Ball -> Ball
 stepBall state t leftPaddle rightPaddle ({x,y,vx,vy} as ball) =
   if | state == Pause -> ball
      | offCourt ball  -> placeInCenter ball
      | otherwise ->
-         let hitLeft  = (hit leftPaddle ball)
-             hitRight = (hit rightPaddle ball)
+         let hitPaddle = getHitPaddle ball leftPaddle rightPaddle
              hitBtm = (y < 7-halfHeight)
              hitTop = (y > halfHeight-7)
-         in stepObj t { ball | vx <- stepV vx hitLeft hitRight
-                             , vy <- stepV vy hitBtm hitTop }
+             (newVx, newVy) = getVxVy vx vy hitPaddle
+         in
+           stepObj t { ball | vx <- newVx
+                            , vy <- maybeBounce newVy hitBtm hitTop }
 
 stepPaddle : Time -> Int -> Paddle -> Paddle
 stepPaddle t dir paddle =
     let
         -- set its Y velocity
-        p = { paddle | vy <- toFloat dir * 200 }
+        p = { paddle | vy <- toFloat dir * 300 }
         -- then move it
         p' = stepObj t p
     in
       -- then bound its y movement
       { p' | y <- clamp (22-halfHeight) (halfHeight-22) p'.y }
 
-stepPlayer : Time -> Int -> Int -> Player -> Player
-stepPlayer t dir point ({paddle,score} as player) =
-    { player | paddle <- stepPaddle t dir paddle
-             , score <- player.score + point }
+stepPlayer : Time -> Int -> Maybe Player -> Player -> Player
+stepPlayer t dir scorer ({paddle,score} as player) =
+    let scoreInc = case scorer of
+                     Nothing -> 0
+                     Just p -> if p == player then 1 else 0
+    in
+      { player | paddle <- stepPaddle t dir paddle
+               , score <- player.score + scoreInc }
 
-getScoreChange : Ball -> (Int,Int)
-getScoreChange ball =
-    if | ball.x > halfWidth   -> (1,0)
-       | ball.x < -halfWidth  -> (0,1)
-       | otherwise            -> (0,0)
+getScorer : Game -> Maybe Player
+getScorer {ball,leftPlayer,rightPlayer} =
+    if | ball.x > halfWidth  -> Just leftPlayer
+       | ball.x < -halfWidth -> Just rightPlayer
+       | otherwise           -> Nothing
 
-getState : State -> Bool -> (Int,Int) -> State
-getState state space (leftPt, rightPt) =
+getState : State -> Bool -> Maybe Player -> State
+getState state space scorer =
     -- if | space -> if (state == Play) then Pause else Play
     if | space             -> Play
-       | leftPt /= rightPt -> Pause
+       | scorer /= Nothing -> Pause
        | otherwise         -> state
 
 stepGame : Input -> Game -> Game
 stepGame {space,leftDir,rightDir,delta} ({state,ball,leftPlayer,rightPlayer} as game) =
-  let (leftPt, rightPt) = getScoreChange ball
+  let scorer = getScorer game
   in
-    { game | state   <- getState state space (leftPt, rightPt)
+    { game | state   <- getState state space scorer
            -- Do NOT use new state in stepBall.
            -- Ball won't move far enough to induce Pause.
            , ball    <- stepBall state delta leftPlayer.paddle rightPlayer.paddle ball 
-           , leftPlayer  <- stepPlayer delta leftDir leftPt leftPlayer
-           , rightPlayer <- stepPlayer delta rightDir rightPt rightPlayer }
+           , leftPlayer  <- stepPlayer delta leftDir scorer leftPlayer
+           , rightPlayer <- stepPlayer delta rightDir scorer rightPlayer }
 
 gameState : Signal Game
 gameState = foldp stepGame newGame input
