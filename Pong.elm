@@ -257,6 +257,7 @@ showCaption state str =
 
 display : (Int,Int) -> Game -> Element
 display (w,h) {state,ball,leftPlayer,rightPlayer} =
+  -- collage : Int -> Int -> [Form] -> Element
   container w h middle <| collage gameWidth gameHeight
        [ court
        , showBall ball
