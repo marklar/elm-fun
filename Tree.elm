@@ -134,13 +134,11 @@ indentStrs =
                                 ]
     in foldTree g ["-- /-"]
 
-
 updateState : Input -> State Int -> State Int
 updateState {space, num} ({tree, lastNum} as state) =
     if space
     then { state | tree <- insertVal num tree, lastNum <- Just num }
     else state
-    -- if space then delete num tree else tree
 
 currentState : Signal (State Int)
 currentState = 
@@ -153,11 +151,6 @@ currentState =
 textColor = rgb 255 255 255
 nodeColor = rgb 60 60 60
 
--- txt : (Text -> Text) -> String -> Element
--- txt f = leftAligned . f . monospace . Text.color textGreen . toText
-
--- show info on side: min, max, size, depth, sum, list
-
 showInfo : Tree a -> Maybe Int -> Element
 showInfo t lastNum =
     let -- foo : String -> ((Tree a) -> b) -> Element
@@ -169,7 +162,6 @@ showInfo t lastNum =
                  , foo "depth: " tDepth
                  , foo "list: " toList
                  ]
-    -- in container 20 200 left <| collage 20 200
 
 showTree : Int -> Int -> Tree a -> Element
 showTree w h tree =
@@ -184,7 +176,6 @@ display (w,h) {tree, lastNum} =
               [ toForm (showTree w h tree)
               , move (-300, 10) <| toForm (showInfo tree lastNum)
               ]
-                            
 
 main : Signal Element
 main = lift2 display Window.dimensions currentState
