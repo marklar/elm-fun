@@ -245,10 +245,8 @@ showPaddle = showMovable (rect 10 40)
 
 showScore : (Int,Int) -> Form
 showScore (left, right) =
-  let scoresElement : Element
-      scoresElement = txt (Text.height 50) (show left ++ "  " ++ show right)
-  in
-    toForm scoresElement |> move (0, gameHeight/2 - 40)
+  let elem = txt (Text.height 50) (show left ++ "  " ++ show right)
+  in toForm elem |> move (0, gameHeight/2 - 40)
 
 showCaption : State -> String -> Form
 showCaption state str =
