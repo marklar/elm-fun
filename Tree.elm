@@ -162,12 +162,12 @@ showInfo : Tree a -> Maybe Int -> Element
 showInfo t lastNum =
     let -- foo : String -> ((Tree a) -> b) -> Element
         foo s f = leftAligned (toText (s ++ show (f t)))
-    in flow down [ foo "max: "  tMax
+    in flow down [ leftAligned (toText ("last: " ++ show lastNum))
                  , foo "min: "  tMin
+                 , foo "max: "  tMax
                  , foo "size: " tSize
                  , foo "depth: " tDepth
                  , foo "list: " toList
-                 , leftAligned (toText ("last: " ++ show lastNum))
                  ]
     -- in container 20 200 left <| collage 20 200
 
