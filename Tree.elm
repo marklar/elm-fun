@@ -1,25 +1,17 @@
 import Keyboard
 import Random
 import Window
+import Graphics.Input as Input
 
 ------------
 -- INPUTS --
 ------------
 
-num : Signal Int
-num = Random.range 1 100 Keyboard.space
+buttonClicks : Input.Input Int
+buttonClicks = Input.input 0
 
-delta : Signal Time
-delta = inSeconds <~ fps 10
-
-type Input = { space: Bool
-             , num: Int
-             , delta: Time   -- don't actually need this
-             }
-
-input = sampleOn delta (Input <~ Keyboard.space
-                              ~ num
-                              ~ delta)
+myButton : Element
+myButton = Input.button buttonClicks.handle 1 "click me"
 
 -----------
 -- MODEL --
@@ -109,21 +101,13 @@ tMin =
 tSize : Tree a -> Int
 tSize = foldTree (\_ lRes rRes -> 1 + lRes + rRes) 0
 
+-- How many levels in the tree?
+tDepth : Tree a -> Int
+tDepth = foldTree (\_ lRes rRes -> 1 + max lRes rRes) 0
+
 -- Not ordered.
 toList : Tree a -> [a]
 toList = foldTree (\v lRes rRes -> v :: lRes ++ rRes) []
-
--- How many nodes are traversed to get to bottom leaf?
--- (Does not use foldTree.  Its semantics are weird.)
-tDepth : Tree a -> Int
-tDepth =
-    let tDepth' d t =
-            case t of
-              Empty -> d
-              Node _ Empty Empty -> d
-              Node _ left right ->
-                  max (tDepth' (d+1) left) (tDepth' (d+1) right)
-    in tDepth' 0
 
 indentStrs : Tree a -> [String]
 indentStrs =
@@ -134,15 +118,26 @@ indentStrs =
                                 ]
     in foldTree g ["-- /-"]
 
-updateState : Input -> State Int -> State Int
-updateState {space, num} ({tree, lastNum} as state) =
-    if space
-    then { state | tree <- insertVal num tree, lastNum <- Just num }
-    else state
+updateState : Int -> State Int -> State Int
+updateState num ({tree, lastNum} as state) =
+    { state | tree <- insertVal num tree
+            , lastNum <- Just num }
+
+randomInt : Signal Int
+-- randomInt = Random.range 1 100 entered
+-- randomInt = Random.range 1 100 (sampleOn buttonClicks.signal (constant 1))
+randomInt = Random.range 1 100 (count buttonClicks.signal)
+ -- buttonClicks.signal 
 
 currentState : Signal (State Int)
-currentState = 
-    foldp updateState initState input
+currentState = foldp updateState initState randomInt
+
+{-| Signal that updates when the enter key is pressed. We will use it to sample
+other signals. Actual value of this signal is not important.
+-}
+entered : Signal ()
+-- keep events that satisfy the given predicate
+entered = always () <~ keepIf id True Keyboard.enter
 
 -------------
 -- Display --
@@ -173,7 +168,8 @@ showTree w h tree =
 display : (Int,Int) -> State Int -> Element
 display (w,h) {tree, lastNum} =
     container w h middle <| collage w h
-              [ toForm (showTree w h tree)
+              [ move (-300, 100) <| toForm myButton
+              , toForm (showTree w h tree)
               , move (-300, 10) <| toForm (showInfo tree lastNum)
               ]
 
