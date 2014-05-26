@@ -1,9 +1,9 @@
-module Balanced where
+module Tree.Balanced where
 -- AVL trees
 
-import Types
-import BTree
-import Zipper
+import Tree.Types
+import Tree.BTree
+import Tree.Zipper
 
 insert :: Ord a => a -> BTree a -> BTree a
 insert x tree = newTree

@@ -1,7 +1,7 @@
-module BSearchTree where
+module Tree.BSearchTree where
 
-import Types
-import BTree
+import Tree.Types
+import Tree.BTree
 
 -- Highest val: always on far right.
 tMax :: BTree a -> Maybe a

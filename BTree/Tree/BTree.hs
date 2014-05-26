@@ -1,6 +1,6 @@
-module BTree where
+module Tree.BTree where
 
-import Types
+import Tree.Types
 
 leaf :: a -> BTree a
 leaf v = Node v Empty Empty

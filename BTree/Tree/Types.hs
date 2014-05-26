@@ -1,4 +1,4 @@
-module Types where
+module Tree.Types where
 
 {-
   * write a binary search tree implementation:

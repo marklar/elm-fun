@@ -1,11 +1,12 @@
 module Main where
 
-import Types
-import BTree
-import BSearchTree
-import Balanced
-import Lists
-import Display
+import Tree.Types
+import Tree.BTree
+import Tree.BSearchTree
+-- import Tree.Unbalanced
+import Tree.Balanced
+import Tree.Lists
+import Tree.Display
 
 t0 :: BTree Int
 -- ()
@@ -54,7 +55,7 @@ main =
       foo newT2
       pp newT2
       putStrLn "--------------"
-      pp (insert 50 newT2)   -- iInsertVal
+      pp (insert 50 newT2)
       putStrLn "--------------"
       putStrLn $ "t2 contains 6? " ++ show (contains 6 t2)
       putStrLn $ "t2 contains 18? " ++ show (contains 18 t2)

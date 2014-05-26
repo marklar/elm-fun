@@ -1,8 +1,8 @@
-module Lists where
+module Tree.Lists where
 
-import Types
-import BTree
-import Balanced (insert)
+import Tree.Types
+import Tree.BTree
+import Tree.Balanced (insert)
 
 -- IN-order traversal.
 -- 1. traverse left.  2. visit root.  3. traverse right.

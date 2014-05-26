@@ -1,7 +1,7 @@
-module Zipper where
+module Tree.Zipper where
 
-import Types
-import BTree
+import Tree.Types
+import Tree.BTree
 
 -- Inserts a value into the tree (in the zipper -- we start at the top,
 -- so we can safely assume that we need NOT go UP to insert).

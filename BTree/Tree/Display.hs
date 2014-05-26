@@ -1,10 +1,10 @@
-module Display where
+module Tree.Display where
 
 -- import Data.List.Split (splitOn)
 import Data.List (intercalate)
 
-import Types
-import BTree
+import Tree.Types
+import Tree.BTree
 
 -- But I don't know how to make the read functions!
 -- instance (Show a) => Show (BTree a) where
