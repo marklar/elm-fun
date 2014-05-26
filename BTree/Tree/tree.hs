@@ -1,5 +1,7 @@
 module Main where
 
+import Control.Monad
+
 import Tree.Types
 import Tree.BTree
 import Tree.BSearchTree
@@ -43,6 +45,11 @@ foo t =
       putStrLn $ "depth: " ++ show (tDepth t)
       putStrLn $ "sum: " ++ show (tSum t)
 
+mkPairs :: [String] -> [(String, String)]
+mkPairs [] = []
+mkPairs (_:[]) = []
+mkPairs (a:b:rest) = [(a,b)] ++ mkPairs rest
+
 main =
     do
       foo t0
@@ -80,5 +87,18 @@ main =
       putStrLn $ "t2 balance factor: " ++ show (balanceFactor t2)
 
       putStrLn "--------------------------------"
-      pp (fromList [1..25])
+      let blurfl = fromList [1..25]
+      pp blurfl
       putStrLn "--------------------------------"
+
+      putStrLn "Now delete 20 and 22!"
+      let blurfless = delete 22 (delete 20 blurfl)
+      pp blurfless
+
+      -- lns <- liftM lines getContents
+      -- mapM_ putStrLn lns
+      -- let pairs = mkPairs (drop 1 lns)
+      --- let numLists = map (second . read) pairs :: [Int]
+      -- mapM_ print 
+      
+

@@ -4,10 +4,15 @@ module Tree.Balanced where
 import Tree.Types
 import Tree.BTree
 import Tree.Zipper
+import Tree.BSearchTree
 
 insert :: Ord a => a -> BTree a -> BTree a
 insert x tree = newTree
-    where (newTree, _) = goTopBalancing $ zipInsertVal x (tree, [])
+    where (newTree, _) = goTopBalancing $ zipInsert x (tree, [])
+
+delete :: Ord a => a -> BTree a -> BTree a
+delete x tree = newTree
+    where (newTree, _) = goTopBalancing $ zipDelete x (tree, [])
 
 -----
 

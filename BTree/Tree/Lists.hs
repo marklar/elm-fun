@@ -20,11 +20,6 @@ postOrdList = foldTree (\v lRes rRes -> rRes ++ v : lRes) []
 preOrdList :: BTree a -> [a]
 preOrdList = foldTree (\v lRes rRes -> v : lRes ++ rRes) []
 
--- Not too efficient; with each folded-over `a`,
--- it starts at the root of the tree and moves down to insert.
-fromList :: Ord a => [a] -> BTree a
-fromList = foldl (flip insert) Empty
-
 -- From >>pre<< OrdList, that is.
 fromPreList :: Ord a => [a] -> BTree a
 fromPreList []     = Empty
@@ -32,3 +27,11 @@ fromPreList (x:xs) =
     Node x (fromPreList lefts) (fromPreList rights)
     where lefts  = takeWhile (<= x) xs
           rights = dropWhile (<= x) xs
+
+-- This list doesn't need to be in any particular order at all.
+-- Creates a balanced tree.
+-- 
+-- Not too efficient; with each folded-over `a`,
+-- it starts at the root of the tree and moves down to insert.
+fromList :: Ord a => [a] -> BTree a
+fromList = foldl (flip insert) Empty
