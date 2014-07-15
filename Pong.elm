@@ -245,8 +245,8 @@ showPaddle = showMovable (rect 10 40)
 
 showScore : (Int,Int) -> Form
 showScore (left, right) =
-  let elem = txt (Text.height 50) (show left ++ "  " ++ show right)
-  in toForm elem |> move (0, gameHeight/2 - 40)
+    let elem = txt (Text.height 50) (show left ++ "  " ++ show right)
+    in toForm elem |> move (0, gameHeight/2 - 40)
 
 showCaption : State -> String -> Form
 showCaption state str =
@@ -255,15 +255,15 @@ showCaption state str =
 
 display : (Int,Int) -> Game -> Element
 display (w,h) {state,ball,leftPlayer,rightPlayer} =
-  -- collage : Int -> Int -> [Form] -> Element
-  container w h middle <| collage gameWidth gameHeight
-       [ court
-       , showBall ball
-       , showPaddle leftPlayer.paddle
-       , showPaddle rightPlayer.paddle
-       , showScore (leftPlayer.score, rightPlayer.score)
-       , showCaption state caption
-       ]
+    -- collage : Int -> Int -> [Form] -> Element
+    container w h middle <| collage gameWidth gameHeight
+                  [ court
+                  , showBall ball
+                  , showPaddle leftPlayer.paddle
+                  , showPaddle rightPlayer.paddle
+                  , showScore (leftPlayer.score, rightPlayer.score)
+                  , showCaption state caption
+                  ]
 
 main : Signal Element
 main = lift2 display Window.dimensions gameState
