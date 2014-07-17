@@ -65,6 +65,7 @@ type Game =
     , snake : Snake
     , apples : [Apple]
     , score : Int
+    , caption : String
     }
 
 newGame : Game
@@ -75,6 +76,7 @@ newGame =
               }
     , apples = []
     , score = 0
+    , caption = "None"
     }
 
 
@@ -88,9 +90,13 @@ stepSnake ({space, arrowDir, delta} as input) ({direction, body} as snake) =
             , body <- body {- FIXME: Make list of body segments. -}
             }
 
+dirToStr : Direction -> String
+dirToStr {x,y} = "x:" ++ show x ++ ", y:" ++ show y
+
 stepGame : Input -> Game -> Game
-stepGame ({space, arrowDir, delta} as input) ({state, snake, apples, score} as game) =
+stepGame ({space, arrowDir, delta} as input) ({state, snake, apples, score, caption} as game) =
     { game | snake <- stepSnake input snake
+           , caption <- dirToStr arrowDir
            -- , state <- getState state space
            }
 
@@ -111,8 +117,10 @@ gardenBrown = lightBrown
 
 -- Show either this or nothing.
 caption = "SPACE to start/pause.  &larr;&uarr;&darr;&rarr; to move."
-showCaption : Form
-showCaption = move (0, -(gameHeight/2) + 20) (toForm (asText caption))
+
+showCaption : String -> Form
+showCaption caption =
+    move (0, -(gameHeight/2) + 20) (toForm (asText caption))
 
 garden : Form
 garden = rect gameWidth gameHeight |> filled gardenBrown
@@ -124,11 +132,11 @@ showSegment : Form
 showSegment = rect 10 10 |> filled snakeGreen
 
 display : (Int,Int) -> Game -> Element
-display (w,h) {state, snake, apples, score} =
+display (w,h) {state, snake, apples, score, caption} =
     container w h middle <| collage gameWidth gameHeight
        [ garden
        , showSegment
-       , showCaption
+       , showCaption caption
        ]
     
 main : Signal Element
