@@ -35,35 +35,5 @@ displayBall : (Float,Float) -> Element
 displayBall ballPos =
     collage collWd collHt [ move ballPos ball ]
 
-displayDir : {x:Int, y:Int} -> Element
-displayDir arrowDir =
-    collage collWd collHt [ toForm (asText arrowDir) ]
-
-displayAll : (Float,Float) -> {x:Int, y:Int} -> Element
-displayAll ballPos arrowDir =
-    collage collWd collHt
-        [ move ballPos ball
-        , move (0, collHt/2 - 10) (toForm (asText arrowDir))
-        ]
-
--- main : Element
--- main = displayBall (100,100)
-
 main : Signal Element
 main = displayBall <~ ballPosition
--- main = displayDir <~ arrowDir
--- main = displayAll <~ ballPosition ~ arrowDir
-
-{-
-
-1. Display a non-moving ball in collage.  Use main : Element
-2. Move it around with `move`.  No input.
-3. Introduce concept of Signal.
-4. Display the arrow direction in collage.
-5. Display ball again, unmoving.
-6. Introduce notion of 'update'.  Need to remember where it was.
-7. foldp : Uses a function to take a starting value and a Signal
-           and produces a new Signal (of same type as starting value).
-8. Use ballPosition Signal as input to display function.  Move ball around.
-
--}
