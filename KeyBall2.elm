@@ -9,7 +9,7 @@ type Dir = {x:Int, y:Int}
 type Ball = {pos:Pos, ballDir:Dir}
 
 initBall : Ball
-initBall = {pos = (0,0), ballDir = {x=0, y=1}}
+initBall = {pos = (0,0), ballDir = {x=0, y=0}}
 
 -------------
 -- SIGNALS --
@@ -17,16 +17,24 @@ initBall = {pos = (0,0), ballDir = {x=0, y=1}}
 type DeltaArrowDir = {delta:Time, arrowDir:Dir}
 
 -- pixels per second
-ballSpeed = 100.0
+ballSpeed = 250.0
 
 distance : Time -> Int -> Float
 distance delta dirVal =
     ballSpeed * (inSeconds delta) * (toFloat dirVal)
 
+-- Change 
 getBallDir : Dir -> Dir -> Dir
 getBallDir arrowDir ballDir =
-    arrowDir
-    -- Don't use both u/d and r/l.  If old val...
+    if False
+      -- Goes only when you tell it.  Can go diagonally.
+      then arrowDir
+      -- Always moving, either vertically or horizontally.
+      -- Changes direction when you tell it to.
+      else case (arrowDir.x, arrowDir.y) of
+            (0,0) -> ballDir
+            (0,y) -> { x=0, y=y }
+            (x,_) -> { x=x, y=0 }
 
 getBallPos : Time -> Ball -> Pos
 getBallPos delta {pos,ballDir} =
@@ -47,7 +55,7 @@ ballSignal = foldp updateBall initBall deltaArrowDir
 -- What direction should we move *next*?
 deltaArrowDir : Signal DeltaArrowDir
 deltaArrowDir = lift2 (\t d -> {delta=t, arrowDir=d})
-                      (fps 20)
+                      (fps 30)
                       Keyboard.arrows
 
 ------------
