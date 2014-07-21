@@ -3,18 +3,16 @@ import Keyboard
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
 
---------------------------
--- MODEL (input, state) --
+-----------
+-- MODEL --
 
--- How long since we last updated?  (Move some distance in *prev* dir.)
--- What direction should we move *next*?
 type Input = { space : Bool    -- (Un-)pause?
              , arrowDir : Dir  -- How to move *next*.
-             , delta : Time    -- How long since last updated?
+             , elapsed : Time  -- How long since last updated?
              }
 
 inputSignal : Signal Input
-inputSignal = lift3 (\s d t -> {space=s, arrowDir=d, delta=t})
+inputSignal = lift3 (\s d t -> {space=s, arrowDir=d, elapsed=t})
               Keyboard.space
               Keyboard.arrows
               (fps 30)
@@ -38,31 +36,35 @@ stateSignal = foldp updateState initState inputSignal
 ------------
 -- UPDATE --
 
+-- Goes only when you tell it.  Can go diagonally.
+getMustHoldDir : Dir -> Dir -> Dir
+getMustHoldDir arrowDir ballDir = arrowDir
+
+-- Always moving, either vertically or horizontally.
+-- Changes direction when you tell it to.
+getContinuousDir : Dir -> Dir -> Dir
+getContinuousDir arrowDir ballDir =
+    case (arrowDir.x, arrowDir.y) of
+      (0,0) -> ballDir
+      (0,y) -> { x=0, y=y }
+      (x,_) -> { x=x, y=0 }
+
 getBallDir : Dir -> Dir -> Dir
-getBallDir arrowDir ballDir =
-    if False
-      -- Goes only when you tell it.  Can go diagonally.
-      then arrowDir
-      -- Always moving, either vertically or horizontally.
-      -- Changes direction when you tell it to.
-      else case (arrowDir.x, arrowDir.y) of
-            (0,0) -> ballDir
-            (0,y) -> { x=0, y=y }
-            (x,_) -> { x=x, y=0 }
+getBallDir = getContinuousDir
 
 ballSpeed = 250.0
 
 distance : Time -> Int -> Float
-distance delta dirVal =
-    ballSpeed * (inSeconds delta) * (toFloat dirVal)
+distance elapsed dirVal =
+    ballSpeed * (inSeconds elapsed) * (toFloat dirVal)
 
 getBallPos : Time -> State -> Pos
-getBallPos delta {pos,ballDir,light} =
+getBallPos elapsed {pos,ballDir,light} =
     case (light, pos) of
       (Red, _) -> pos
       (Green, (x,y)) ->
-          (x + (distance delta ballDir.x),
-           y + (distance delta ballDir.y))
+          (x + (distance elapsed ballDir.x),
+           y + (distance elapsed ballDir.y))
 
 getLight : Bool -> Light -> Light
 getLight space light =
@@ -72,13 +74,13 @@ getLight space light =
       (True, Green)  -> Red
 
 updateState : Input -> State -> State
-updateState {space,arrowDir,delta} state =
-    { pos = getBallPos delta state
+updateState {space,arrowDir,elapsed} state =
+    { pos = getBallPos elapsed state
     , ballDir = getBallDir arrowDir state.ballDir
     , light = getLight space state.light
     }
 
-------------
+-------------
 -- DISPLAY --
 
 ball : Form
