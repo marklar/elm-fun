@@ -11,22 +11,28 @@ type Input = { space : Bool    -- (Un-)pause?
              , elapsed : Time  -- How long since last updated?
              }
 
-inputSignal : Signal Input
-inputSignal = lift3 (\s d t -> {space=s, arrowDir=d, elapsed=t})
-              Keyboard.space
-              Keyboard.arrows
-              (fps 30)
+elapsedSignal : Signal Time
+elapsedSignal = inSeconds <~ fps 35
 
 data Light = Green | Red
 
+-- when space changes
+-- lightSignal : Signal Light
+-- lightSignal = foldp updatePause False Keyboard.space
+
+inputSignal : Signal Input
+inputSignal = Input <~ Keyboard.space ~ Keyboard.arrows ~ elapsedSignal
+
 type State = { pos : Pos
              , ballDir : Dir
+             , space : Bool
              , light : Light
              }
 
 initState : State
 initState = { pos = (0,0)
             , ballDir = {x=0, y=1}
+            , space = False
             , light = Red
             }
 
@@ -56,7 +62,8 @@ ballSpeed = 250.0
 
 distance : Time -> Int -> Float
 distance elapsed dirVal =
-    ballSpeed * (inSeconds elapsed) * (toFloat dirVal)
+    -- ballSpeed * (inSeconds elapsed) * (toFloat dirVal)
+    ballSpeed * elapsed * (toFloat dirVal)
 
 getBallPos : Time -> State -> Pos
 getBallPos elapsed {pos,ballDir,light} =
@@ -66,18 +73,20 @@ getBallPos elapsed {pos,ballDir,light} =
           (x + (distance elapsed ballDir.x),
            y + (distance elapsed ballDir.y))
 
-getLight : Bool -> Light -> Light
-getLight space light =
-    case (space, light) of
-      (False, light) -> light
-      (True, Red)    -> Green
-      (True, Green)  -> Red
+getLight : Bool -> Bool -> Light -> Light
+getLight space prevSpace light =
+    case (space, prevSpace, light) of
+      (False, _, _)        -> light
+      (True, True, _)      -> light
+      (True, False, Red)   -> Green
+      (True, False, Green) -> Red
 
 updateState : Input -> State -> State
 updateState {space,arrowDir,elapsed} state =
     { pos = getBallPos elapsed state
     , ballDir = getBallDir arrowDir state.ballDir
-    , light = getLight space state.light
+    , space = space
+    , light = getLight space state.space state.light
     }
 
 -------------
