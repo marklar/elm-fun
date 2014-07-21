@@ -2,37 +2,39 @@ import Keyboard
 
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
+data Light = Green | Red
 
 -----------
 -- MODEL --
 
-type Input = { space : Bool    -- (Un-)pause?
+type Input = { light : Light
              , arrowDir : Dir  -- How to move *next*.
              , elapsed : Time  -- How long since last updated?
              }
 
+type LightInput = { space : Bool
+                  , light : Light
+                  }
+
+lightSignal : Signal Light
+lightSignal = lift .light <| foldp updateLightInput (LightInput False Red) Keyboard.space
+
 elapsedSignal : Signal Time
 elapsedSignal = inSeconds <~ fps 35
 
-data Light = Green | Red
-
--- when space changes
--- lightSignal : Signal Light
--- lightSignal = foldp updatePause False Keyboard.space
-
 inputSignal : Signal Input
-inputSignal = Input <~ Keyboard.space ~ Keyboard.arrows ~ elapsedSignal
+inputSignal = Input <~ (dropRepeats lightSignal)
+                     ~ (dropRepeats Keyboard.arrows)
+                     ~ elapsedSignal
 
 type State = { pos : Pos
              , ballDir : Dir
-             , space : Bool
              , light : Light
              }
 
 initState : State
 initState = { pos = (0,0)
             , ballDir = {x=0, y=1}
-            , space = False
             , light = Red
             }
 
@@ -42,9 +44,18 @@ stateSignal = foldp updateState initState inputSignal
 ------------
 -- UPDATE --
 
+updateLightInput : Bool -> LightInput -> LightInput
+updateLightInput newSpace {space,light} =
+    { space = newSpace
+    , light = case (newSpace, space, light) of
+                (True, False, Red)   -> Green
+                (True, False, Green) -> Red
+                _                    -> light
+    }
+
 -- Goes only when you tell it.  Can go diagonally.
 getMustHoldDir : Dir -> Dir -> Dir
-getMustHoldDir arrowDir ballDir = arrowDir
+getMustHoldDir arrowDir _ = arrowDir
 
 -- Always moving, either vertically or horizontally.
 -- Changes direction when you tell it to.
@@ -62,32 +73,22 @@ ballSpeed = 250.0
 
 distance : Time -> Int -> Float
 distance elapsed dirVal =
-    -- ballSpeed * (inSeconds elapsed) * (toFloat dirVal)
     ballSpeed * elapsed * (toFloat dirVal)
 
 getBallPos : Time -> State -> Pos
-getBallPos elapsed {pos,ballDir,light} =
-    case (light, pos) of
-      (Red, _) -> pos
-      (Green, (x,y)) ->
-          (x + (distance elapsed ballDir.x),
-           y + (distance elapsed ballDir.y))
-
-getLight : Bool -> Bool -> Light -> Light
-getLight space prevSpace light =
-    case (space, prevSpace, light) of
-      (False, _, _)        -> light
-      (True, True, _)      -> light
-      (True, False, Red)   -> Green
-      (True, False, Green) -> Red
+getBallPos elapsed {pos,ballDir} =
+    let (x,y) = pos
+    in  (x + (distance elapsed ballDir.x),
+         y + (distance elapsed ballDir.y))
 
 updateState : Input -> State -> State
-updateState {space,arrowDir,elapsed} state =
-    { pos = getBallPos elapsed state
-    , ballDir = getBallDir arrowDir state.ballDir
-    , space = space
-    , light = getLight space state.space state.light
-    }
+updateState {light,arrowDir,elapsed} state =
+    if state.light == Green
+      then { pos = getBallPos elapsed state
+           , ballDir = getBallDir arrowDir state.ballDir
+           , light = light
+           }
+      else { state | light <- light }
 
 -------------
 -- DISPLAY --
