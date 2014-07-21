@@ -3,27 +3,41 @@ import Keyboard
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
 
------------
--- MODEL --
+--------------------------
+-- MODEL (input, state) --
 
-type Ball = {pos:Pos, ballDir:Dir}
+-- How long since we last updated?  (Move some distance in *prev* dir.)
+-- What direction should we move *next*?
+type Input = { space : Bool    -- (Un-)pause?
+             , arrowDir : Dir  -- How to move *next*.
+             , delta : Time    -- How long since last updated?
+             }
 
-initBall : Ball
-initBall = {pos = (0,0), ballDir = {x=0, y=0}}
+inputSignal : Signal Input
+inputSignal = lift3 (\s d t -> {space=s, arrowDir=d, delta=t})
+              Keyboard.space
+              Keyboard.arrows
+              (fps 30)
 
--------------
--- SIGNALS --
+data Light = Green | Red
 
-type DeltaArrowDir = {delta:Time, arrowDir:Dir}
+type State = { pos : Pos
+             , ballDir : Dir
+             , light : Light
+             }
 
--- pixels per second
-ballSpeed = 250.0
+initState : State
+initState = { pos = (0,0)
+            , ballDir = {x=0, y=1}
+            , light = Red
+            }
 
-distance : Time -> Int -> Float
-distance delta dirVal =
-    ballSpeed * (inSeconds delta) * (toFloat dirVal)
+stateSignal : Signal State
+stateSignal = foldp updateState initState inputSignal
+              
+------------
+-- UPDATE --
 
--- Change 
 getBallDir : Dir -> Dir -> Dir
 getBallDir arrowDir ballDir =
     if False
@@ -36,40 +50,49 @@ getBallDir arrowDir ballDir =
             (0,y) -> { x=0, y=y }
             (x,_) -> { x=x, y=0 }
 
-getBallPos : Time -> Ball -> Pos
-getBallPos delta {pos,ballDir} =
-    let (x,y) = pos
-    in  ((x + (distance delta ballDir.x)),
-         (y + (distance delta ballDir.y)))
+ballSpeed = 250.0
 
-updateBall : DeltaArrowDir -> Ball -> Ball
-updateBall {delta,arrowDir} ball =
-    { pos = getBallPos delta ball
-    , ballDir = getBallDir arrowDir ball.ballDir
+distance : Time -> Int -> Float
+distance delta dirVal =
+    ballSpeed * (inSeconds delta) * (toFloat dirVal)
+
+getBallPos : Time -> State -> Pos
+getBallPos delta {pos,ballDir,light} =
+    case (light, pos) of
+      (Red, _) -> pos
+      (Green, (x,y)) ->
+          (x + (distance delta ballDir.x),
+           y + (distance delta ballDir.y))
+
+getLight : Bool -> Light -> Light
+getLight space light =
+    case (space, light) of
+      (False, light) -> light
+      (True, Red)    -> Green
+      (True, Green)  -> Red
+
+updateState : Input -> State -> State
+updateState {space,arrowDir,delta} state =
+    { pos = getBallPos delta state
+    , ballDir = getBallDir arrowDir state.ballDir
+    , light = getLight space state.light
     }
-
-ballSignal : Signal Ball
-ballSignal = foldp updateBall initBall deltaArrowDir
-
--- How long since we last updated?  (Move some distance in *prev* dir.)
--- What direction should we move *next*?
-deltaArrowDir : Signal DeltaArrowDir
-deltaArrowDir = lift2 (\t d -> {delta=t, arrowDir=d})
-                      (fps 30)
-                      Keyboard.arrows
 
 ------------
 -- DISPLAY --
 
 ball : Form
-ball = filled blue (circle 50)
+ball = filled blue (circle 30)
 
-collWd = 500
-collHt = 400
+collWd = 600
+collHt = 600
 
-displayBall : Ball -> Element
-displayBall {pos} =
-    collage collWd collHt [ move pos ball ]
+display : State -> Input -> Element
+display ({pos} as state) input =
+    flow down [ asText input
+              , asText state
+              , collage collWd collHt [ move pos ball ]
+              ]
 
 main : Signal Element
-main = displayBall <~ ballSignal
+main = display <~ stateSignal ~ inputSignal
