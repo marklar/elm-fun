@@ -17,7 +17,8 @@ type LightInput = { space : Bool
                   }
 
 lightSignal : Signal Light
-lightSignal = lift .light <| foldp updateLightInput (LightInput False Red) Keyboard.space
+lightSignal = lift .light <|
+                foldp updateLightInput (LightInput False Red) Keyboard.space
 
 elapsedSignal : Signal Time
 elapsedSignal = inSeconds <~ fps 35
@@ -53,21 +54,20 @@ updateLightInput newSpace {space,light} =
                 _                    -> light
     }
 
--- Goes only when you tell it.  Can go diagonally.
-getMustHoldDir : Dir -> Dir -> Dir
-getMustHoldDir arrowDir _ = arrowDir
+turn : Int -> Int -> Int
+turn arrowVal ballVal =
+    if ballVal == 0 then arrowVal else ballVal
 
--- Always moving, either vertically or horizontally.
--- Changes direction when you tell it to.
-getContinuousDir : Dir -> Dir -> Dir
-getContinuousDir arrowDir ballDir =
+-- Always move, either vertically or horizontally.
+-- Change direction when you tell it to.
+-- May not reverse direction.  Only turn.
+-- TODO: Use only l/r keys?
+getBallDir : Dir -> Dir -> Dir
+getBallDir arrowDir ballDir =
     case (arrowDir.x, arrowDir.y) of
       (0,0) -> ballDir
-      (0,y) -> { x=0, y=y }
-      (x,_) -> { x=x, y=0 }
-
-getBallDir : Dir -> Dir -> Dir
-getBallDir = getContinuousDir
+      (0,y) -> { x = 0, y = turn y ballDir.y }
+      (x,_) -> { y = 0, x = turn x ballDir.x }
 
 ballSpeed = 250.0
 
