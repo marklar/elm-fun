@@ -2,8 +2,8 @@ import Keyboard
 import Array
 import Random
 
-collWd = 600
-collHt = 600
+collWd = 1400
+collHt = 750
 
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
@@ -51,6 +51,31 @@ type State = { snakeDir : Dir
              , light : Light
              }
 
+{-
+
+TODO: Rather than storing each position,
+store only where the vertices (head, tail, and turns) are.
+
+One way to do that is to record (Pos, Dir).
+That is:
+  1. where the body part is at that moment, and
+  2. what direction it came from to get there.
+
+If pushing a new value:
+  * whose Dir is different from the previous, simply push.
+    You have a new vertex.
+  * whose Dir is the same as the previous,
+    then you can simply replace the previous with the new one
+    (thus extending that segment of the Path).
+
+When removing a value, move it closer by the appropriate amount
+to the subsequent.  If doing so makes its Pos equal to or *pass*
+the other, then simply remove it.  To see whether it goes past,
+look at the subsequent's Dir, and see whether the sign of the
+delta in that direction changes.
+
+-}
+
 initSnake : Int -> Snake
 initSnake numSegments =
     let init n = (0.0, 0.0 - ((toFloat n) * 8))
@@ -61,6 +86,29 @@ initSnake numSegments =
        , back  = reverse (Array.toList (Array.slice 1 (len-1) segmentsAry))
        , tl    = Array.getOrElse (0,0) (len-1) segmentsAry
        }
+
+{-
+
+How do we determine whether the head runs into something?
+If the snake is a Path (list of line segments),
+check it against each line segment.
+If the head's Pos is within (2 * lineWidth) of the segment,
+then it's touching.
+
+First, calculate which point on the line (including the vertices)
+is closest to the head vertex.
+
+If the two vertices have the same Y value, then line is horizontal.
+If the head's X value is between them, then distance = Y delta.
+If not, distance = hypotenuse between the head and the closer vertex.
+(Closer: smaller X delta.)
+
+If the two vertices have the same X value, the line is vertical.
+If the head's Y value is between them, then distance = X delta.
+If not, distance = hypotenuse between the head and the closer vertex.
+(Closer: smaller Y delta.)
+
+-}
 
 initState : State
 initState = { snakeDir = {x=0, y=1}
@@ -151,21 +199,20 @@ updateState {light,arrowDir,elapsed} state =
 -------------
 -- DISPLAY --
 
+--  (croppedImage (40,100) 40 80 "trev.png")
+--  (croppedImage (80,60) 130 150 "zoe.png")
+
 snakeGreen : Color
 snakeGreen = rgb 40 140 80
 
-segment : Form
-segment = filled snakeGreen (square 20)
-
-extreme : Form
-extreme = filled snakeGreen (circle 10)
-
 showSnake : Snake -> [Form]
 showSnake {hd,front,back,tl} =
-    let drawBody pos = move pos segment
-    in move hd extreme ::
-       move tl extreme ::
-       (map drawBody front) ++ (map drawBody back)
+    [ traced { defaultLine | color <- snakeGreen
+                           , width <- 15
+                           , cap   <- Round
+                           , join  <- Smooth
+                           }
+             (path (hd :: front ++ (reverse back) ++ [tl])) ]
 
 display : State -> Input -> Pos -> Element
 display ({snake} as state) input apple =
