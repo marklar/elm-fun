@@ -1,4 +1,9 @@
 import Keyboard
+import Array
+import Random
+
+collWd = 600
+collHt = 600
 
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
@@ -6,6 +11,16 @@ data Light = Green | Red
 
 -----------
 -- MODEL --
+
+elapsedSignal : Signal Time
+elapsedSignal = inSeconds <~ fps 35
+
+appleSignal : Signal Pos
+appleSignal = 
+    let f a b = (toFloat a, toFloat b)
+    in lift2 f (Random.range 10 (collWd - 10) (every second))
+               (Random.range 10 (collHt - 10) (every second))
+
 
 type Input = { light : Light
              , arrowDir : Dir  -- How to move *next*.
@@ -20,22 +35,36 @@ lightSignal : Signal Light
 lightSignal = lift .light <|
                 foldp updateLightInput (LightInput False Red) Keyboard.space
 
-elapsedSignal : Signal Time
-elapsedSignal = inSeconds <~ fps 35
-
 inputSignal : Signal Input
 inputSignal = Input <~ (dropRepeats lightSignal)
                      ~ (dropRepeats Keyboard.arrows)
                      ~ elapsedSignal
 
-type State = { pos : Pos
-             , ballDir : Dir
+type Snake = { hd : Pos
+             , front : [Pos]
+             , back : [Pos]
+             , tl : Pos
+             }
+
+type State = { snakeDir : Dir
+             , snake : Snake
              , light : Light
              }
 
+initSnake : Int -> Snake
+initSnake numSegments =
+    let init n = (0.0, 0.0 - ((toFloat n) * 8))
+        segmentsAry = Array.initialize numSegments init
+        len = Array.length segmentsAry
+    in { hd    = Array.getOrElse (0,0) 0 segmentsAry
+       , front = []
+       , back  = reverse (Array.toList (Array.slice 1 (len-1) segmentsAry))
+       , tl    = Array.getOrElse (0,0) (len-1) segmentsAry
+       }
+
 initState : State
-initState = { pos = (0,0)
-            , ballDir = {x=0, y=1}
+initState = { snakeDir = {x=0, y=1}
+            , snake = initSnake 20
             , light = Red
             }
 
@@ -44,6 +73,34 @@ stateSignal = foldp updateState initState inputSignal
               
 ------------
 -- UPDATE --
+
+-- SNAKE
+
+pushSnake : Pos -> Snake -> Snake
+pushSnake newHeadPos snake =
+    { snake | hd    <- newHeadPos
+            , front <- snake.hd :: snake.front
+            }
+
+popSnake : Snake -> Snake
+popSnake ({hd,front,back,tl} as snake) =
+    case (front,back) of
+      ([], []) -> snake
+      (_, [])  -> let revFront = reverse front
+                  in  { snake | front <- []
+                              , back  <- tail revFront
+                              , tl    <- head revFront
+                              }
+      otherwise -> { snake | back <- tail back
+                           , tl   <- head back
+                           }
+
+moveSnake : Pos -> Snake -> Snake
+moveSnake newHeadPos snake =
+    snake |> pushSnake newHeadPos
+          |> popSnake
+
+-- LIGHT      
 
 updateLightInput : Bool -> LightInput -> LightInput
 updateLightInput newSpace {space,light} =
@@ -55,56 +112,67 @@ updateLightInput newSpace {space,light} =
     }
 
 turn : Int -> Int -> Int
-turn arrowVal ballVal =
-    if ballVal == 0 then arrowVal else ballVal
+turn arrowVal snakeVal =
+    if snakeVal == 0 then arrowVal else snakeVal
 
--- Always move, either vertically or horizontally.
--- Change direction when you tell it to.
 -- May not reverse direction.  Only turn.
 -- TODO: Use only l/r keys?
-getBallDir : Dir -> Dir -> Dir
-getBallDir arrowDir ballDir =
+getSnakeDir : Dir -> Dir -> Dir
+getSnakeDir arrowDir snakeDir =
     case (arrowDir.x, arrowDir.y) of
-      (0,0) -> ballDir
-      (0,y) -> { x = 0, y = turn y ballDir.y }
-      (x,_) -> { y = 0, x = turn x ballDir.x }
+      (0,0) -> snakeDir
+      (0,y) -> { x = 0, y = turn y snakeDir.y }
+      (x,_) -> { y = 0, x = turn x snakeDir.x }
 
-ballSpeed = 250.0
+snakeSpeed = 250.0
 
 distance : Time -> Int -> Float
 distance elapsed dirVal =
-    ballSpeed * elapsed * (toFloat dirVal)
+    snakeSpeed * elapsed * (toFloat dirVal)
 
-getBallPos : Time -> State -> Pos
-getBallPos elapsed {pos,ballDir} =
-    let (x,y) = pos
-    in  (x + (distance elapsed ballDir.x),
-         y + (distance elapsed ballDir.y))
+getSnakePos : Time -> State -> Pos
+getSnakePos elapsed {snake,snakeDir} =
+    let (x,y) = snake.hd
+    in  (x + (distance elapsed snakeDir.x),
+         y + (distance elapsed snakeDir.y))
 
 updateState : Input -> State -> State
 updateState {light,arrowDir,elapsed} state =
     if state.light == Green
-      then { pos = getBallPos elapsed state
-           , ballDir = getBallDir arrowDir state.ballDir
-           , light = light
-           }
+      then
+          let newHeadPos = getSnakePos elapsed state
+          in { snakeDir = getSnakeDir arrowDir state.snakeDir
+             , snake = moveSnake newHeadPos state.snake
+             -- , snake = pushSnake newHeadPos state.snake
+             , light = light
+             }
       else { state | light <- light }
 
 -------------
 -- DISPLAY --
 
-ball : Form
-ball = filled blue (circle 30)
+snakeGreen : Color
+snakeGreen = rgb 40 140 80
 
-collWd = 600
-collHt = 600
+segment : Form
+segment = filled snakeGreen (square 20)
 
-display : State -> Input -> Element
-display ({pos} as state) input =
+extreme : Form
+extreme = filled snakeGreen (circle 10)
+
+showSnake : Snake -> [Form]
+showSnake {hd,front,back,tl} =
+    let drawBody pos = move pos segment
+    in move hd extreme ::
+       move tl extreme ::
+       (map drawBody front) ++ (map drawBody back)
+
+display : State -> Input -> Pos -> Element
+display ({snake} as state) input apple =
     flow down [ asText input
-              , asText state
-              , collage collWd collHt [ move pos ball ]
+              , asText apple
+              , collage collWd collHt (showSnake snake)
               ]
 
 main : Signal Element
-main = display <~ stateSignal ~ inputSignal
+main = display <~ stateSignal ~ inputSignal ~ appleSignal
