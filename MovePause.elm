@@ -2,8 +2,19 @@ import Keyboard
 import Array
 import Random
 
+collWd : Int
 collWd = 1400
+collHt : Int
 collHt = 750
+
+boundCoords : Int -> (Int,Int)
+boundCoords full =
+    let half = round (toFloat full / 2)
+    in ((10 - half), (half - 10))
+
+-- (Int,Int)
+(minX, maxX) = boundCoords collWd
+(minY, maxY) = boundCoords collHt
 
 type Pos = (Float,Float)
 type Dir = {x:Int, y:Int}
@@ -12,14 +23,21 @@ data Light = Green | Red
 -----------
 -- MODEL --
 
+-- We want the apple to remain where it is until eaten.
+-- Once eaten, we want a new one to appear.
+-- We need it to appear where it's not in contact with any part of the snake.
+
+-- How do we make separate modules?
+
+
 elapsedSignal : Signal Time
 elapsedSignal = inSeconds <~ fps 35
 
 appleSignal : Signal Pos
 appleSignal = 
     let f a b = (toFloat a, toFloat b)
-    in lift2 f (Random.range 10 (collWd - 10) (every second))
-               (Random.range 10 (collHt - 10) (every second))
+    in lift2 f (Random.range minY maxX (every (3000 * millisecond)))
+               (Random.range minY maxY (every (3000 * millisecond)))
 
 
 type Input = { light : Light
@@ -205,20 +223,24 @@ updateState {light,arrowDir,elapsed} state =
 snakeGreen : Color
 snakeGreen = rgb 40 140 80
 
-showSnake : Snake -> [Form]
+showSnake : Snake -> Form
 showSnake {hd,front,back,tl} =
-    [ traced { defaultLine | color <- snakeGreen
+    traced { defaultLine | color <- snakeGreen
                            , width <- 15
                            , cap   <- Round
                            , join  <- Smooth
                            }
-             (path (hd :: front ++ (reverse back) ++ [tl])) ]
+             (path (hd :: front ++ (reverse back) ++ [tl]))
+
+showApple : Pos -> Form
+showApple applePos =
+    move applePos (filled red (circle 10))
 
 display : State -> Input -> Pos -> Element
 display ({snake} as state) input apple =
     flow down [ asText input
               , asText apple
-              , collage collWd collHt (showSnake snake)
+              , collage collWd collHt [ showSnake snake, showApple apple ]
               ]
 
 main : Signal Element
