@@ -1,4 +1,6 @@
-elm
+Random Little Things
 ===
 
-Experiments with elm-lang.org
+My kids and I tinkering with Elm, learning a bit about programming.
+
+(This code is all "old" Elm, from before version 0.17.)
